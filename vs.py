@@ -1,6 +1,6 @@
 import numpy as np
 
-def calculate_matrix(u: int, v: int, lmbda: float, z: float):
+def calcuate_interaction_m(u: int, v: int, lmbda: float, z: float):
     # find the interaction matrix for one feature
     return np.array([
         [lmbda/z, 0, -u/z, -(u*v/lmbda), (lmbda**2 + u**2)/lmbda, -v], 
@@ -14,7 +14,7 @@ def find_interaction(points: list, f, z):
     # z is list of k points
     L_e = []
     for i, (u, v) in enumerate(points):
-        L_e.append(calculate_matrix(u, v, f, z[i]))
+        L_e.append(calcuate_interaction_m(u, v, f, z[i]))
 
     return np.vstack(L_e)
 
@@ -34,5 +34,15 @@ def eth_find_velocity(df: list, L_e, J, k: list, e, V):
     psuedoinv = np.linalg.pinv(L_e @ V @ J)
     return k[0] * psuedoinv @ e
 
+def skew_symmetric_3d(v):
+    return np.array([[0, -v[2], v[1]],
+                     [v[2], 0, -v[0]],
+                     [-v[1], v[0], 0]])
 
-
+# matrix that looks like this:
+# [R, t x R]
+# [0,    R]
+# assumes input velocity screw is of form [Translational Rotational]
+def get_vel_transform(R, t):
+    skt = skew_symmetric_3d(t)
+    np.array([R, (skt @ R)], [0, R])
