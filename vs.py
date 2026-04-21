@@ -18,6 +18,7 @@ def find_interaction(points: list, f, z):
 
     return np.vstack(L_e)
 
+
 # eye in hand control
 # outputs joint velocities (6 x 1) given L_e (interaction matrix, 2k x 6), e (vector of errors in each feature, 2k x 1)
 # k (list of PID proportionality constants), and v (list of past velocities)
