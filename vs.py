@@ -18,32 +18,36 @@ def find_interaction(points: list, f, z):
 
     return np.vstack(L_e)
 
-
+# find derivative and proportional for PD controller
+# use first order approx for kd
+def calculate_pd(e_history, dt):
+    p = e_history[-1]
+    if len(e_history) >= 2:
+        d = (e_history[-1] - e_history[-2]) / dt
+    else:
+        d = np.zeros_like(p)
+    return p, d
+    
 # eye in hand control
-# outputs joint velocities (6 x 1) given L_e (interaction matrix, 2k x 6), e (vector of errors in each feature, 2k x 1)
-# k (list of PID proportionality constants), and v (list of past velocities)
-# TODO: finish PID control
-def eih_find_velocity(e: list, L_e, k: list, v: list):
+# outputs joint velocities (6 x 1) given L_e (interaction matrix, 2k x 6), e_history (vector of errors in each feature, 2k x n)
+# k (list of PD proportionality constants), and v (list of past velocities)
+def eih_find_velocity(L_e, params: list, e_history: list):
     # np pinv function automatically calculates psuedo inverse
     psuedoinv = np.linalg.pinv(L_e)
-    return k[0] * psuedoinv @ e
+    p, d = calculate_pd(e_history, params[1])
+    return psuedoinv @ (params[0][0]*p + params[0][1]*d)
 
-# eye to hand control
-# same as above, but also requires robot jacobian and V, translation matrix
-# assume at tool ce
-def eth_find_velocity(df: list, L_e, J, k: list, e, V):
-    psuedoinv = np.linalg.pinv(L_e @ V @ J)
-    return k[0] * psuedoinv @ e
+# control loop with simulation placeholders
+# control_params includes max iterations (0), focal length of camera, (1), kp/kd constants (3), and delta t (4)
+def ibvs_control(get_current_pts, get_depth, desired_pt, control_params):
+    e_history = []
+    for i in range(control_params[0]): 
+        cur = get_current_pts()
+        z = get_depth()
+        e_history.append((cur - desired_pt).flatten())
+        if(np.linalg.norm(e_history[-1]) <= control_params[3]):
+            break
+        L_e = find_interaction(cur, control_params[1], z) 
+        eih_find_velocity(L_e, control_params[2:3], e_history) 
 
-def skew_symmetric_3d(v):
-    return np.array([[0, -v[2], v[1]],
-                     [v[2], 0, -v[0]],
-                     [-v[1], v[0], 0]])
 
-# matrix that looks like this:
-# [R, t x R]
-# [0,    R]
-# assumes input velocity screw is of form [Translational Rotational]
-def get_vel_transform(R, t):
-    skt = skew_symmetric_3d(t)
-    np.array([R, (skt @ R)], [0, R])
