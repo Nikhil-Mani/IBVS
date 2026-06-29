@@ -43,6 +43,18 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         current_pts = extract_features(rgb_image)
         v_c = vs.ibvs_control(current_pts, depth_map, DESIRED_PTS, CONTROL_PARAMS)
 
+        # cartesian -> joint
+        jacp = np.zeros((3, model.nv))
+        jacr = np.zeros((3, model.nv))
+
+        mujoco.mj_jacSite(model, data, jacp, jacr, CAM_SITE_ID)
+        J = np.vstack((jacp, jacr))
+        dq = np.linalg.pinv(J) @ v_c
+        
+        # integrate for position actuation:
+        cur_pos = data.qpos[:model.nu]
+        target_pos = cur_pos + (dq[:model.nu] * model.opt.timestamp)
+        data.ctrl[:model.nu] = target_pos
         mujoco.mj_step(model, data)
         viewer.sync()
         remaining = model.opt.timestep - (time.time()-step_start)
